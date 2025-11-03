@@ -41,7 +41,7 @@ The current leaderboard is computed considering the accuracy and overall cost fo
 
 <h2 align="left">Have your router on there!</h3>
 
-If you want your router on the board, please contact us with emails at yifan.lu@rice.edu, jxing@rice.edu, or submit a GitHub issue. For fairness concern, we have
+If you want your router on the leaderboard, please contact us via email at yifan.lu@rice.edu or jxing@rice.edu, or submit a GitHub issue. For fairness, we have withheld the ground truth answers for the full dataset. However, you can still test your router using the sub-sampled 10% dataset by following the steps below.
 
 ## Usage
 
