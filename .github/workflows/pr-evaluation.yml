@@ -82,8 +82,8 @@ jobs:
           elif [[ "$ENTRY_COUNT" -eq 809 ]]; then
             SPLIT="sub_10"
           else
-            echo "Warning: Unexpected prediction file size ($ENTRY_COUNT entries). Defaulting to sub_10." >&2
-            SPLIT="sub_10"
+            echo "Warning: Unexpected prediction file size ($ENTRY_COUNT entries). Defaulting to full." >&2
+            SPLIT="full"
           fi
           echo "split=$SPLIT" >> "$GITHUB_OUTPUT"
 
@@ -131,10 +131,6 @@ jobs:
             --router "${{ steps.detect.outputs.router }}" \
             --split "${{ steps.detect.outputs.split }}" \
             --base-ref "$BASE_SHA" > evaluation_output.txt 2>&1
-          # Extract metrics from output
-          if grep -q "Metrics:" evaluation_output.txt; then
-            python3 automation/extract_metrics.py evaluation_output.txt
-          fi
           cat evaluation_output.txt
 
       - name: Post evaluation results as PR comment
@@ -149,42 +145,31 @@ jobs:
             comment += `**Router:** \`${{ steps.detect.outputs.router }}\`\n`;
             comment += `**Dataset Split:** \`${{ steps.detect.outputs.split }}\`\n\n`;
 
-            // Try to read metrics from file (in base directory)
-            try {
-              const metricsPath = path.join('base', 'metrics.json');
-              if (fs.existsSync(metricsPath)) {
-                const metrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
-                comment += '### Metrics\n\n';
-                comment += '| Metric | Value |\n';
-                comment += '|--------|-------|\n';
-                comment += `| **RouterArena Score** | ${metrics.arena_score.toFixed(4)} |\n`;
-                comment += `| **Accuracy** | ${(metrics.accuracy * 100).toFixed(2)}% |\n`;
-                comment += `| **Total Cost** | $${metrics.total_cost.toFixed(6)} |\n`;
-                comment += `| **Avg Cost per Query** | $${metrics.avg_cost_per_query.toFixed(6)} |\n`;
-                comment += `| **Avg Cost per 1K Queries** | $${metrics.avg_cost_per_1000.toFixed(4)} |\n`;
-                comment += `| **Number of Queries** | ${metrics.num_queries} |\n`;
-              } else {
-                // Fallback: try to parse from evaluation output
-                const outputPath = path.join('base', 'evaluation_output.txt');
-                const output = fs.readFileSync(outputPath, 'utf8');
-                const metricsMatch = output.match(/Metrics:\s*(\{[\s\S]*?\})/);
-                if (metricsMatch) {
-                  const metrics = JSON.parse(metricsMatch[1]);
-                  comment += '### Metrics\n\n';
-                  comment += '| Metric | Value |\n';
-                  comment += '|--------|-------|\n';
-                  comment += `| **RouterArena Score** | ${metrics.arena_score.toFixed(4)} |\n`;
-                  comment += `| **Accuracy** | ${(metrics.accuracy * 100).toFixed(2)}% |\n`;
-                  comment += `| **Total Cost** | $${metrics.total_cost.toFixed(6)} |\n`;
-                  comment += `| **Avg Cost per Query** | $${metrics.avg_cost_per_query.toFixed(6)} |\n`;
-                  comment += `| **Avg Cost per 1K Queries** | $${metrics.avg_cost_per_1000.toFixed(4)} |\n`;
-                  comment += `| **Number of Queries** | ${metrics.num_queries} |\n`;
-                } else {
-                  comment += 'Warning: Could not parse evaluation metrics from output.\n';
-                }
-              }
-            } catch (error) {
-              comment += `Warning: Error reading metrics: ${error.message}\n`;
+            // Read metrics from metrics.json file (required - no fallback)
+            const metricsPath = path.join('base', 'metrics.json');
+            if (!fs.existsSync(metricsPath)) {
+              throw new Error(`metrics.json not found at ${metricsPath}. Evaluation must produce metrics.json file.`);
+            }
+
+            const metrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
+            comment += '### RouterArena Metrics\n\n';
+            comment += '| Metric | Value |\n';
+            comment += '|--------|-------|\n';
+            comment += `| **RouterArena Score** | ${metrics.arena_score.toFixed(4)} |\n`;
+            comment += `| **Accuracy** | ${(metrics.accuracy * 100).toFixed(2)}% |\n`;
+            comment += `| **Total Cost** | $${metrics.total_cost.toFixed(6)} |\n`;
+            comment += `| **Avg Cost per Query** | $${metrics.avg_cost_per_query.toFixed(6)} |\n`;
+            comment += `| **Avg Cost per 1K Queries** | $${metrics.avg_cost_per_1000.toFixed(4)} |\n`;
+            comment += `| **Number of Queries** | ${metrics.num_queries} |\n`;
+
+            // Add optimality scores if available
+            if (metrics.optimality) {
+              comment += '\n### Optimality Metrics\n\n';
+              comment += '| Metric | Value |\n';
+              comment += '|--------|-------|\n';
+              comment += `| **Opt.Sel** (Optimal Selection) | ${metrics.optimality.opt_sel.toFixed(4)} |\n`;
+              comment += `| **Opt.Cost** (Cost Efficiency) | ${metrics.optimality.opt_cost.toFixed(4)} |\n`;
+              comment += `| **Opt.Acc** (Accuracy vs Optimal) | ${metrics.optimality.opt_acc.toFixed(4)} |\n`;
             }
 
             comment += '\n---\n';

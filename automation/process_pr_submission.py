@@ -229,7 +229,12 @@ def sync_dataset_into_worktree(worktree_path: Path) -> None:
 
 
 def compute_scores(prediction_file: Path) -> dict[str, float]:
-    """Compute aggregate metrics from an evaluated prediction file."""
+    """
+    Compute aggregate metrics from an evaluated prediction file.
+
+    Only uses regular entries (for_optimality=False) for RouterArena score.
+    Optimality entries are excluded from arena_score calculation.
+    """
 
     with prediction_file.open("r", encoding="utf-8") as handle:
         predictions = json.load(handle)
@@ -237,16 +242,23 @@ def compute_scores(prediction_file: Path) -> dict[str, float]:
     if not isinstance(predictions, list):
         raise ValueError(f"Unexpected prediction payload in {prediction_file}")
 
+    # Filter to regular predictions only (exclude optimality entries)
+    regular_predictions = [p for p in predictions if not p.get("for_optimality", False)]
+
     accuracies = [
-        entry["accuracy"] for entry in predictions if entry.get("accuracy") is not None
+        entry["accuracy"]
+        for entry in regular_predictions
+        if entry.get("accuracy") is not None
     ]
     costs = [
-        entry["cost"] for entry in predictions if entry.get("cost") not in (None, 0)
+        entry["cost"]
+        for entry in regular_predictions
+        if entry.get("cost") not in (None, 0)
     ]
 
     avg_accuracy = sum(accuracies) / len(accuracies) if accuracies else 0.0
     total_cost = float(sum(costs)) if costs else 0.0
-    num_queries = len(predictions)
+    num_queries = len(regular_predictions)
     avg_cost_per_query = total_cost / num_queries if num_queries else 0.0
     avg_cost_per_1000 = avg_cost_per_query * 1000
 
@@ -425,7 +437,38 @@ def main(argv: Optional[list[str]] = None) -> int:
                 ).strip()
             )
 
-        metrics = compute_scores(prediction_file)
+        # Read metrics from metrics.json (required - no fallback)
+        # llm_evaluation/run.py writes metrics.json to the current working directory (worktree_path)
+        metrics_path = worktree_path / "metrics.json"
+        if not metrics_path.exists():
+            raise FileNotFoundError(
+                textwrap.dedent(
+                    f"""
+                    metrics.json not found at {metrics_path}.
+                    Evaluation must produce metrics.json file.
+                    Ensure llm_evaluation/run.py completed successfully.
+                    """
+                ).strip()
+            )
+
+        print("\n✔ Reading metrics from metrics.json...")
+        with open(metrics_path, "r") as f:
+            metrics = json.load(f)
+
+        # Copy metrics.json to base directory (REPO_ROOT) for workflow to read
+        base_metrics_path = REPO_ROOT / "metrics.json"
+        shutil.copy2(metrics_path, base_metrics_path)
+        print(f"✔ Copied metrics.json to {base_metrics_path}")
+
+        # Display optimality scores if available
+        if "optimality" in metrics:
+            opt = metrics["optimality"]
+            print("\n✔ Optimality scores:")
+            print(
+                f"  Opt.Sel: {opt.get('opt_sel', 0):.4f} ({opt.get('opt_sel', 0) * 100:.2f}%)"
+            )
+            print(f"  Opt.Cost: {opt.get('opt_cost', 0):.4f}")
+            print(f"  Opt.Acc: {opt.get('opt_acc', 0):.4f}")
 
         # Persist artifacts under pr_evaluations/pr-<num>/run-<timestamp>/
         run_timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
