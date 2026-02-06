@@ -169,6 +169,12 @@ class ModelEvaluator:
         project_root = os.path.dirname(script_dir)
 
         # Try multiple possible paths for cost file
+        # Get the directory of this file and construct paths relative to project root
+        current_file_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(
+            current_file_dir
+        )  # Go up from llm_evaluation/ to project root
+
         possible_paths = [
             os.path.join(project_root, "model_cost", "model_cost.json"),
             "./model_cost/model_cost.json",
@@ -186,6 +192,7 @@ class ModelEvaluator:
             print(
                 f"Warning: Could not find cost configuration file. Tried: {possible_paths[:3]}..."
             )
+            print(f"Current working directory: {os.getcwd()}")
             self.cost_config = {}
             return
 
@@ -203,7 +210,11 @@ class ModelEvaluator:
         self, model_name: str, token_usage: Dict[str, int]
     ) -> float:
         """Calculate inference cost based on token usage and model pricing."""
-        if not token_usage or not self.cost_config:
+        if not token_usage:
+            return 0.0
+
+        if not self.cost_config:
+            print("Warning: Cost config is empty!")
             return 0.0
 
         # Remove _batch suffix if present for cost lookup
@@ -227,6 +238,10 @@ class ModelEvaluator:
             print(
                 f"Warning: No cost configuration found for model {model_name} (lookup: {cost_lookup_name})"
             )
+            if len(self.cost_config) > 0:
+                print(
+                    f"Available cost config keys (first 10): {list(self.cost_config.keys())[:10]}"
+                )
             return 0.0
 
         # Calculate cost
@@ -260,6 +275,7 @@ class ModelEvaluator:
             "FinQA": "FinQA",
             "GeoBench": "GeoBench",
             "GeoGraphyData": "GeoGraphyData_100k",  # Fix the dataset name
+            "GPQA": "GPQA",
             "GSM8K": "GSM8K",
             "LiveCodeBench": "LiveCodeBench",
             "MATH": "MATH",
@@ -480,7 +496,18 @@ class ModelEvaluator:
             except Exception as e:
                 print(f"Error loading LiveCodeBench dataset: {e}")
                 return None
-
+        elif dataset_name == "GPQA":
+            gpqa_gt_path = "./dataset/gpqa_ground_truth.json"
+            if os.path.exists(gpqa_gt_path):
+                try:
+                    with open(gpqa_gt_path, "r", encoding="utf-8") as f:
+                        gpqa_data = json.load(f)
+                    for item in gpqa_data:
+                        if item.get("global_index") == global_index:
+                            return item["answer"]
+                except Exception as e:
+                    print(f"Error loading GPQA ground truth: {e}")
+            return None
         # For other datasets, find the entry with matching global_index
         if self.all_data is None:
             return None
