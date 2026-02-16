@@ -15,7 +15,7 @@ jobs:
         github.event.comment.author_association == 'COLLABORATOR' ||
         github.event.comment.user.login == github.event.issue.user.login
       )
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       checks: write
       contents: read
