@@ -209,11 +209,11 @@ jobs:
 
       - name: Enable Swap Space
         run: |
-          # Create a 10GB swap file to prevent OOM
-          sudo fallocate -l 10G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          # Create a new 10GB swap file (using a unique name to avoid conflicts)
+          sudo fallocate -l 10G /swapfile10g
+          sudo chmod 600 /swapfile10g
+          sudo mkswap /swapfile10g
+          sudo swapon /swapfile10g
           sudo swapon --show
 
       - name: Evaluate submission
