@@ -459,6 +459,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         validation_cmd = [
             "uv",
             "run",
+            "--active"
             "python",
             "router_inference/check_config_prediction_files.py",
             args.router,
@@ -470,6 +471,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         evaluation_cmd = [
             "uv",
             "run",
+            "--active"
             "python",
             "llm_evaluation/run.py",
             args.router,

@@ -203,6 +203,15 @@ jobs:
              "base/router_inference/predictions/${ROUTER_NAME}-robustness.json"
           echo "Copied prediction file from PR to base workspace"
 
+      - name: Enable Swap Space
+        run: |
+          # Create a 10GB swap file to prevent OOM
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo swapon --show
+
       - name: Evaluate submission
         if: ${{ steps.detect.outputs.router != '' }}
         id: evaluate
