@@ -176,6 +176,11 @@ jobs:
           fi
           echo "split=$SPLIT" >> "$GITHUB_OUTPUT"
 
+      - name: Install uv
+        if: ${{ steps.detect.outputs.router != '' }}
+        run: |
+          pip install uv
+
       - name: Show detected router
         if: ${{ steps.detect.outputs.router != '' }}
         run: |
