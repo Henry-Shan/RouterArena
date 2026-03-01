@@ -14,9 +14,9 @@
       "provider": "zhipu",
       "error": null
     },
-    "cost": 2.0961e-05,
     "accuracy": null
   },
+  
   {
     "global index": "ArcMMLU_420",
     "prompt": "Please read the following multiple-choice questions and provide the most likely correct answer based on the options given.\n\nContext: None\n\nQuestion: The postings list should be sorted by: ( ).\n\nOptions: \nA. Document Frequency\nB. DoclD\nC. TermID\nD. Term frequency\n\n\nProvide the correct letter choice in \\boxed{X}, where X is the correct letter choice. Keep the explanation or feedback within 3 sentences.",
